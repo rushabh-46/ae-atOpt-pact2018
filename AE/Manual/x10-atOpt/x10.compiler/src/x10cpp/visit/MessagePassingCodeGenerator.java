@@ -252,8 +252,11 @@ import x10.optimizations.atOptimzer.ClassInfo;
 import x10.optimizations.atOptimzer.EdgeRep;
 import x10.optimizations.atOptimzer.ObjNode;
 import x10.optimizations.atOptimzer.ForClosureObjectcpp;
-
 /* Nobita's Addition */
+
+/* Doremon imports */
+import x10.optimizations.usefulPlaces.DoremonGlobalRefs;
+/* Doremon imports */
 
 /**
  * Primary visitor for the C++ codegenerator.
@@ -308,6 +311,9 @@ public class MessagePassingCodeGenerator extends X10DelegatingVisitor {
 	
     
     /* Nobita code */
+
+	// doremon temporaries
+	private String doremonClosureName;
 	
 	public MessagePassingCodeGenerator(StreamWrapper sw, Translator tr) {
 		this.sw = sw;
@@ -3805,11 +3811,21 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 		lineNo++;
 		String funName = n.name().toString();
 		
+		ArrayList<String> zztempList = new ArrayList<String> ();  // doremon
 		
 		//code generation phase
 		if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (funName.equalsIgnoreCase("runAt")  || funName.equalsIgnoreCase("runAsync"))) {
 			VarWithLineNo temp1 = currClass.peek();
         	VarWithLineNo temp2 = currMethod.peek();
+
+			// doremon start
+			sw.write("  /*  ");
+			sw.write("current class: ");
+			sw.write(temp1.name);
+			sw.write(", current method: ");
+			sw.write(temp2.name);
+			sw.write("  */  ");
+			// doremon end
         	
         	//getting the graph
         	HashMap<String, LinkedList<EdgeRep>> varInfo = lastGraphInfo.peek();
@@ -3860,6 +3876,7 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
             			        				ForClosureObjectcpp cl1 = new ForClosureObjectcpp();
             			        				cl1.fldName = str;cl1.zzName = "zztemp"+zzCounter;cl1.type=ci.x10Type;
             			        				llcl.addLast(cl1);
+												zztempList.add(cl1.zzName);   // doremon
             			        				zzCounter++;
             			        				break;
             			        			}
@@ -3985,6 +4002,54 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
         	}
 		}
 		/* Nobita code */
+
+		// doremon start
+		sw.write("  /* (1) After temp setup, funName = ");
+		sw.write(funName);
+		sw.write(" */   ");
+		if (funName.equalsIgnoreCase("runAt"))
+		{
+			sw.write("  /*  ");
+			boolean first = true;
+			for (String obj : zztempList) 
+			{
+				if(first) 
+				{
+					sw.write(obj);
+					first = false;
+					continue;
+				}
+				sw.write(", " + obj);
+			}
+
+			X10CPPContext_c c = (X10CPPContext_c) tr.context();
+			
+        	// ClosureDef closureDef = n.closureDef();
+
+        	// X10ClassType hostClassType = (X10ClassType) closureDef.typeContainer().get();
+
+			int id = getConstructorId(c);
+
+        	// String hostClassName = translate_mangled_FQN(Emitter.fullName(hostClassType).toString(), "_");
+        	// String cname = getClosureName(hostClassName, id);
+
+			sw.write("  id = ");
+
+			sw.write(Integer.toString(id));
+
+			sw.write("  */  ");
+
+			sw.write("if (true) { ");
+			sw.newline();
+
+			// sw.write("SimpleAT__closure__7* sampleTemp = new SimpleAT__closure__7(zztemp0, zztemp1); ");
+			// sw.newline();
+			// sw.write("sampleTemp->__apply(); ");
+			// sw.newline();
+			// sw.write("}");
+			// sw.newline();
+		}
+		// doremon end
 		
 		X10CPPContext_c context = (X10CPPContext_c) tr.context();
 
@@ -4029,6 +4094,8 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 		    }
 		}
 
+		sw.write("  /* (2.1) doremon */   "); // doremon line
+
 		String lang[] = new String[1];
 		String pat = getCppImplForDef(md, lang);
 		if (pat != null) {
@@ -4066,6 +4133,8 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 		        return;
 		    }
 		}
+
+		sw.write("  /* (2.2) doremon */   "); // doremon line
 
 		// the cast is because our generated member function may use a more general
 		// return type because c++ does not support covariant smartptr returns
@@ -4184,7 +4253,8 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 		if (needsCast) {
 			sw.write(")");
 		}
-		
+
+		sw.write("  /* (3) doremon funName = " + funName + " */   "); // doremon line // semicolon comes after this :(
 		
 		/* Nobita code */
 		if(funName.equalsIgnoreCase("runAt") || funName.equalsIgnoreCase("evalAt") || funName.equalsIgnoreCase("runAsync")) {
@@ -4213,6 +4283,40 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 		}
 		/* Nobita code */
 		//System.out.println("End of call");
+
+
+		// doremon start
+		if (funName.equalsIgnoreCase("runAt"))
+		{
+			sw.write(";");
+			sw.newline();
+			sw.write("  } else { ");
+			sw.newline();
+			// sw.write("  /*  ");
+			// sw.write("SimpleAT__closure__7* sampleTemp = new SimpleAT__closure__7(zztemp0, zztemp1); ");
+			
+			sw.write(DoremonGlobalRefs.cname + "* sampleTemp = new " + DoremonGlobalRefs.cname + "(");
+			boolean first = true;
+			for (String obj : DoremonGlobalRefs.arguments) 
+			{
+				if(first) 
+				{
+					sw.write(obj);
+					first = false;
+					continue;
+				}
+				sw.write(", " + obj);
+			}
+			sw.write(");");			
+			sw.newline();
+			sw.write("sampleTemp->__apply(); ");
+			sw.newline();
+			// sw.write("  */  ");
+
+			sw.write("}");
+			sw.newline();
+		}
+		// doremon end
 	}
 
 	private void invokeInterface(Node_c n, Expr target, List<Expr> args, String dispType, Type contType,
@@ -4923,6 +5027,8 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
     }
     
     public void visit(Closure_c n) {
+
+		sw.write(" /* Into Closure_c !!  */  ");  // doremon
     	
     	//System.out.println("Printing the closure name: ");
         X10CPPContext_c c = (X10CPPContext_c) tr.context();
@@ -5062,7 +5168,7 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
             // emit body inline; no benefit to declaring out-of-line
             n.print(n.body(), sw, tr);
             sw.newline(); sw.forceNewline();
-         }
+        }
 
         sw.write("// captured environment"); sw.newline();
         List<VarInstance<?>> refs = computeBoxedRefs(c, closureDef);
@@ -5116,7 +5222,7 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 		    }
 		}
 
-        emitter.printDeclarationList(sw, c, env, refs);
+        emitter.printDeclarationList(sw, c, (List<VarInstance<?>>) env, refs);
         sw.forceNewline();
         
         int kind = 0;
@@ -5252,6 +5358,7 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
         	}
         }
         sw.write(")");
+		// doremon: sw.write(" /* hello from doremon !! */ ");
         sw.begin(0);
         // FIXME: factor out this loop
         //boolean h1 = false;
@@ -5351,6 +5458,9 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 
 		// Done generating closure definition.  Pop streams.
         sw.popCurrentStream();
+
+		sw.write(" /* streams popped  */ ");   // doremon
+
         c.closures = saved_closures;
         c.genericFunctionClosures = saved_generic_closures;
         c.setInsideTemplateClosure(saved_inside_template_closure);
@@ -5359,6 +5469,8 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
         // note that we alloc using the typeof the superType but we pass in the correct size
         // this is because otherwise alloc may (when debugging is on) try to examine the
         // RTT of the closure (which doesn't exist)
+
+		sw.write("  /*  Creating closure instantiations ... ? */  ");   // doremon
 
         // first get the template arguments (if any)
         prefix="<";
@@ -5370,13 +5482,25 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
         if (prefix.equals(",")) sb.append(">");
         String templateArgs = sb.toString();
 
+		sw.write("  /* template arguments = " + templateArgs + "  */");   // doremon
+
         boolean stackAllocateClosure = ((X10CPPContext_c)c).closureOuter.stackAllocateClosure;
         if (!stackAllocateClosure) {
             sw.write("reinterpret_cast"+chevrons(make_ref(superType))+"(");
             sw.write("(new (::x10aux::alloc"+chevrons(superType)+"(sizeof("+cname+templateArgs+")))");
         }
         sw.write(cname+templateArgs+"(");
-        for (int i = 0; i < env.size(); i++) {
+
+		// doremon store cname and arguments
+		doremonClosureName = cname+templateArgs;
+		DoremonGlobalRefs.cname = cname+templateArgs;
+		sw.write("  /* cname = ");
+		sw.write(cname);
+		sw.write(" */  ");
+		DoremonGlobalRefs.arguments = new ArrayList<String>();
+		// doremon end: this part gets called by cname like runAsync, _make, reduce, addPlace, runAt, ...
+        
+		for (int i = 0; i < env.size(); i++) {
         	//Nobitas modified code only true condition
         	if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4) {
         		if (i > 0) sw.write(", ");
@@ -5409,22 +5533,27 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 	            		for(ForClosureObjectcpp cl:llcc) {
 	            			if (ii > 0) sw.write(", ");
 	            			sw.write(cl.zzName);
+							DoremonGlobalRefs.arguments.add(cl.zzName); // doremon
 	            			ii++;
 	            		}
                 	}
                 	else {
                 		if (refs.contains(var)) {
                             sw.write("&("+name+")");
+							DoremonGlobalRefs.arguments.add("&("+name+")"); // doremon
                         } else {
                             sw.write(name);
+							DoremonGlobalRefs.arguments.add(name); // doremon
                         }
                 	}
                 }
                 else {
                 	 if (refs.contains(var)) {
-                         sw.write("&("+name+")");
+						sw.write("&("+name+")");
+						DoremonGlobalRefs.arguments.add("&("+name+")"); // doremon
                      } else {
-                         sw.write(name);
+						sw.write(name);
+						DoremonGlobalRefs.arguments.add(name); // doremon
                      }
                 }
         	}
@@ -5444,8 +5573,10 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
                 }
                 if (refs.contains(var)) {
                     sw.write("&("+name+")");
+					DoremonGlobalRefs.arguments.add("&("+name+")"); // doremon
                 } else {
                     sw.write(name);
+					DoremonGlobalRefs.arguments.add(name); // doremon
                 }
         	}
         }
