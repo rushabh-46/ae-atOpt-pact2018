@@ -17,6 +17,10 @@ import java.util.Stack;
 
 import polyglot.util.SimpleCodeWriter;
 
+/* Doremon imports */
+import x10.optimizations.usefulPlaces.DoremonGlobalRefs;
+/* Doremon imports */
+
 /**
  * A StreamWrapper represents a pair of ClassifiedStreams, header and body, plus a stream
  * designated as "current" (could be yet a third one).  All output operations are performed
@@ -102,7 +106,12 @@ public class StreamWrapper extends SimpleCodeWriter {
         cs.unifiedBreak(n, level, alt, altlen);
     }
     @Override public void unifiedBreak(int n) { cs.unifiedBreak(n); }
-    @Override public void write(String str) { cs.write(str); }
+    @Override public void write(String str) { 
+        // doremon 
+        // TODO update other write functions as well
+        DoremonGlobalRefs.writeStream(str);
+        cs.write(str); 
+    }
     public void writeln(String str) { cs.writeln(str); }
     @Override public void write(String s, int length) { cs.write(s, length); }
     @Override public boolean flush() throws IOException { return cs.flush(); }

@@ -4039,6 +4039,21 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 
 			sw.write("  */  ");
 
+			sw.newline();
+			sw.newline();
+			
+			sw.write("x10::lang::Place * tmpPLACE = NULL;");
+			sw.newline();
+
+			sw.write("bool flag = false;");
+			sw.newline();
+
+			sw.write("do {");
+			sw.newline();
+
+			sw.write("if (flag) { ");
+			sw.newline();
+
 			sw.write("if (true) { ");
 			sw.newline();
 
@@ -4245,7 +4260,17 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 		    emitter.printTemplateInstantiation(mi, sw);
 		}
 		sw.write("(");
+
+		// Doremon extracting place argument
+		sw.write(" /* printing actuals funName = " + funName + " */  ");
+		if (funName.equalsIgnoreCase("runAt")) {
+			DoremonGlobalRefs.startStream();
+		}
+		
 		printCallActuals(n, context, xts, mi, n.arguments());
+		
+		DoremonGlobalRefs.stopStream();  // doremon 
+		
 		sw.write(")");
 		sw.write(dangling);
 		sw.end();
@@ -4311,10 +4336,23 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 			sw.newline();
 			sw.write("sampleTemp->__apply(); ");
 			sw.newline();
-			// sw.write("  */  ");
-
 			sw.write("}");
 			sw.newline();
+			sw.write("break;");
+			sw.newline();
+			sw.write("}");
+			sw.newline();
+			sw.write("else { ");
+			sw.newline();
+			sw.write("tmpPLACE = " + DoremonGlobalRefs.placeArgument + ";");
+			sw.newline();
+			sw.write("  //  " + DoremonGlobalRefs.streamOutput);
+			sw.newline();
+			sw.write("flag = true;");
+			sw.newline();
+			sw.write("}");
+			sw.newline();
+			sw.write("} while(true)");
 		}
 		// doremon end
 	}
