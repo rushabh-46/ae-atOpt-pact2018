@@ -8,8 +8,8 @@ public class DoremonGlobalRefs {
 
 	// create one stack
 
-	/* static class name */
-	public static String cname = "";
+	/* stack of all class names */
+	public static Stack<String> stackOfCname = new Stack<String> ();
 
 	// TODO: stack!!
 	public static ArrayList<String> arguments;
@@ -20,41 +20,71 @@ public class DoremonGlobalRefs {
 	// flag to extract stream output
 	private static boolean isOn = false;
 
-	// extract stream output
-	public static String streamOutput = "";
+	// current stream output
+	public static String currStreamOutput = "";
+
+	// stack of all the stream outputs  
+	private static Stack<String> stackOfStreams = new Stack<String>();
+
+	// push cname into stack
+	public static void pushClassName(String cname) {
+		stackOfCname.push(cname);
+	}
+
+	// pop cname from stack
+	public static String popClassName() {
+		return stackOfCname.pop();
+	}
 
 	// turn off streaming
 	public static void stopStream() {
 		isOn = false;
-
-		int len = streamOutput.length();
+		String savedTemp = currStreamOutput;
+		int len = currStreamOutput.length();
 		String temp = "";
 		int i=0;
 		while(i<len) {
-			if (streamOutput.charAt(i) == '/' && i+1<len && streamOutput.charAt(i+1) == '*') {
+			if (currStreamOutput.charAt(i) == '/' && i+1<len && currStreamOutput.charAt(i+1) == '*') {
 				i+=2;
-				while(i<len-1 && !(streamOutput.charAt(i) == '*' && streamOutput.charAt(i+1) == '/')) i++;
+				while(i<len-1 && !(currStreamOutput.charAt(i) == '*' && currStreamOutput.charAt(i+1) == '/')) i++;
 				i+=2;
 			}
-			if (i<len) temp = temp + streamOutput.charAt(i);
+			if (i<len) temp = temp + currStreamOutput.charAt(i);
+			i++;
 		}
-		streamOutput = temp;
-		int index = streamOutput.indexOf(",");
-		if (index > 0)
-			streamOutput = streamOutput.substring(0, index);
-		else {
-			// TODO: throw error?
+
+		currStreamOutput = temp;
+		i=0;
+		len = currStreamOutput.length();
+		temp = "";
+		int bracketCount = 0;
+		while(i<len) {
+			if (currStreamOutput.charAt(i) == ',' && bracketCount == 0) break;
+			if (currStreamOutput.charAt(i) == '(') bracketCount++;
+			else if (currStreamOutput.charAt(i) == ')') bracketCount--;
+			temp = temp + currStreamOutput.charAt(i);
+			i++;
 		}
+		currStreamOutput = temp ;
+		// stackOfStreams.push(currStreamOutput);
 	}
 
 	// turn on streaming
 	public static void startStream() {
 		isOn = true;
-		streamOutput = "";
+		stackOfStreams.push(currStreamOutput);
+		currStreamOutput = "";
 	}
 
 	// write to the stream
 	public static void writeStream(String str) {
-		if (isOn) streamOutput = streamOutput + str;
+		if (isOn) currStreamOutput = currStreamOutput + str;
+	}
+
+	// pop and return stream
+	public static String popStreamOutput() {
+		String str = currStreamOutput;
+		currStreamOutput = stackOfStreams.pop();
+		return str;
 	}
 }

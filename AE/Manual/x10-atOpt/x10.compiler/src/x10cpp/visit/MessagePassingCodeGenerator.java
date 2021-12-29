@@ -311,9 +311,6 @@ public class MessagePassingCodeGenerator extends X10DelegatingVisitor {
 	
     
     /* Nobita code */
-
-	// doremon temporaries
-	private String doremonClosureName;
 	
 	public MessagePassingCodeGenerator(StreamWrapper sw, Translator tr) {
 		this.sw = sw;
@@ -4042,7 +4039,7 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 			sw.newline();
 			sw.newline();
 			
-			sw.write("x10::lang::Place * tmpPLACE = NULL;");
+			sw.write("x10::lang::Place tmpPLACE;");
 			sw.newline();
 
 			sw.write("bool flag = false;");
@@ -4269,7 +4266,13 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 		
 		printCallActuals(n, context, xts, mi, n.arguments());
 		
-		DoremonGlobalRefs.stopStream();  // doremon 
+		if (funName.equalsIgnoreCase("runAt")) {
+			sw.write(" /* stopping streaming now */  ");
+			sw.newline();
+			sw.write(" // " + DoremonGlobalRefs.currStreamOutput);
+			sw.newline();
+			DoremonGlobalRefs.stopStream();  // doremon stopping to get the place argument
+		}
 		
 		sw.write(")");
 		sw.write(dangling);
@@ -4320,7 +4323,9 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 			// sw.write("  /*  ");
 			// sw.write("SimpleAT__closure__7* sampleTemp = new SimpleAT__closure__7(zztemp0, zztemp1); ");
 			
-			sw.write(DoremonGlobalRefs.cname + "* sampleTemp = new " + DoremonGlobalRefs.cname + "(");
+			sw.write(" // ");
+			String dcname = DoremonGlobalRefs.popClassName();
+			sw.write(dcname + "* sampleTemp = new " + dcname + "(");
 			boolean first = true;
 			for (String obj : DoremonGlobalRefs.arguments) 
 			{
@@ -4334,8 +4339,32 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 			}
 			sw.write(");");			
 			sw.newline();
-			sw.write("sampleTemp->__apply(); ");
+			sw.write(" // sampleTemp->__apply(); ");
 			sw.newline();
+
+			sw.write("::x10::lang::VoidFun_0_0::__apply(::x10aux::nullCheck(   ::x10::xrx::Runtime::deepCopy< ::x10::lang::VoidFun_0_0* >( ");
+			sw.newline();
+
+			sw.write(" reinterpret_cast< ::x10::lang::VoidFun_0_0*>(new " + dcname + "(");
+			first = true;
+			for (String obj : DoremonGlobalRefs.arguments) 
+			{
+				if(first) 
+				{
+					sw.write(obj);
+					first = false;
+					continue;
+				}
+				sw.write(", " + obj);
+			}
+			sw.write("))");	
+			// sw.write(DoremonGlobalRefs.secondArgument + ",");
+			sw.newline();
+			
+			// sw.write(DoremonGlobalRefs.thirdArgument);
+			sw.write(" ))); ");
+			sw.newline();
+
 			sw.write("}");
 			sw.newline();
 			sw.write("break;");
@@ -4344,10 +4373,10 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 			sw.newline();
 			sw.write("else { ");
 			sw.newline();
-			sw.write("tmpPLACE = " + DoremonGlobalRefs.placeArgument + ";");
+			sw.write("tmpPLACE = " + DoremonGlobalRefs.popStreamOutput() + ";");
 			sw.newline();
-			sw.write("  //  " + DoremonGlobalRefs.streamOutput);
-			sw.newline();
+			// sw.write("  //  " + DoremonGlobalRefs.streamOutput);
+			// sw.newline();
 			sw.write("flag = true;");
 			sw.newline();
 			sw.write("}");
@@ -5530,8 +5559,7 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
         sw.write(cname+templateArgs+"(");
 
 		// doremon store cname and arguments
-		doremonClosureName = cname+templateArgs;
-		DoremonGlobalRefs.cname = cname+templateArgs;
+		DoremonGlobalRefs.pushClassName(cname+templateArgs);
 		sw.write("  /* cname = ");
 		sw.write(cname);
 		sw.write(" */  ");
