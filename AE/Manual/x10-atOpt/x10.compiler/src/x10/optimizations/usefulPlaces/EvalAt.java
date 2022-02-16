@@ -2,21 +2,10 @@ package x10.optimizations.usefulPlaces;
 
 import java.util.*;
 
-public class DoremonGlobalRefs {
-	/* stack of all class names */
-	public static Stack<String> stackOfCname = new Stack<String> ();
-
-	// TODO: stack!!
-	public static ArrayList<String> arguments;
-
-	/* place argument */
-	public static String placeArgument = "NULL";
+public class EvalAt {
 
 	// flag to extract stream output
 	private static boolean isOn = false;
-
-	// // flag to know if to consider evalAt opt or not
-	// public static boolean evalOn = true;
 
 	// current stream output
 	public static String currStreamOutput = "";
@@ -24,31 +13,70 @@ public class DoremonGlobalRefs {
 	// stack of all the stream outputs  
 	private static Stack<String> stackOfStreams = new Stack<String>();
 
-	// /* stack of all evalAt template names */
-	// public static Stack<String> stackOfevalTemplates = new Stack<String> ();
+	// stack of flags to know if to consider evalAt opt or not (Init to false)
+	private static Stack<Boolean> evalOnStack = new Stack<Boolean>();
 
-	// push cname into stack
-	public static void pushClassName(String cname) {
-		stackOfCname.push(cname);
+	/* stack of all evalAt template names */
+	public static Stack<String> stackOfevalTemplates = new Stack<String> ();
+
+	/* stack of all lhs */
+	public static Stack<String> stackOfLHS = new Stack<String> ();
+
+
+    // push evalAt template into stack
+	public static void pushevalTemplates(String template) {
+		stackOfevalTemplates.push(template);
 	}
 
-	// pop cname from stack
-	public static String popClassName() {
-		if (stackOfCname.empty()) return "BRRR";  // TODO: remove this
-		return stackOfCname.pop();
+	// pop evalAt template from stack
+	public static String popevalTemplates() {
+		return stackOfevalTemplates.pop();
 	}
 
-	// // push evalAt template into stack
-	// public static void pushevalTemplates(String template) {
-	// 	stackOfevalTemplates.push(template);
-	// }
+    // push lhs into stack
+	public static void pushLHS(String lhs) {
+		stackOfLHS.push(lhs);
+	}
 
-	// // pop evalAt template from stack
-	// public static String popevalTemplates() {
-	// 	return stackOfevalTemplates.pop();
-	// }
+	// peek lhs from stack
+	public static String peekLHS() {
+		return stackOfLHS.peek();
+	}
 
-	// turn off streaming
+	// check stack empty or not
+	public static boolean emptyLHS() {
+		return stackOfLHS.empty();
+	}
+
+	// pop lhs from stack
+	public static String popLHS() {
+		return stackOfLHS.pop();
+	}
+
+    // don't perform evalAt opt
+	public static void turnOffEval() {
+		if (evalOnStack.empty()) evalOnStack.push(false);
+		evalOnStack.push(false);
+	}
+
+    // finished performing evalAt opt
+	public static void doneWithEval() {
+		if (!evalOnStack.empty()) evalOnStack.pop();
+	}
+
+	// can we perform evalAT opt?
+	public static boolean isEvalOn() {
+		if (evalOnStack.empty()) evalOnStack.push(false);
+		return evalOnStack.peek();
+	}
+
+	// can perform evalAt opt
+	public static void turnOnEval() {
+		if (evalOnStack.empty()) evalOnStack.push(false);
+		evalOnStack.push(true);
+	}
+
+    // turn off streaming
 	public static void stopStream() {
 		isOn = false;
 		String savedTemp = currStreamOutput;
@@ -103,14 +131,4 @@ public class DoremonGlobalRefs {
 		currStreamOutput = stackOfStreams.pop();
 		return str;
 	}
-
-	// // don't perform evalAt opt
-	// public static void turnOffEval() {
-	// 	evalOn = false;
-	// }
-
-	// // can perform evalAt opt
-	// public static void turnOnEval() {
-	// 	evalOn = true;
-	// }
 }

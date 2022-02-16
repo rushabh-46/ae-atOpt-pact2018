@@ -19,6 +19,7 @@ import polyglot.util.SimpleCodeWriter;
 
 /* Doremon imports */
 import x10.optimizations.usefulPlaces.DoremonGlobalRefs;
+import x10.optimizations.usefulPlaces.EvalAt;
 /* Doremon imports */
 
 /**
@@ -110,6 +111,7 @@ public class StreamWrapper extends SimpleCodeWriter {
         // doremon 
         // TODO update other write functions as well
         DoremonGlobalRefs.writeStream(str);
+        EvalAt.writeStream(str);
         cs.write(str); 
     }
     public void writeln(String str) { cs.writeln(str); }

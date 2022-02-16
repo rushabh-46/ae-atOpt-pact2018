@@ -256,6 +256,7 @@ import x10.optimizations.atOptimzer.ForClosureObjectcpp;
 
 /* Doremon imports */
 import x10.optimizations.usefulPlaces.DoremonGlobalRefs;
+import x10.optimizations.usefulPlaces.EvalAt;
 /* Doremon imports */
 
 /**
@@ -2477,6 +2478,7 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
     		}
 			
 			if (expr instanceof X10Call_c) {
+			sw.write(" /* asgn.right() instance of x10call_c */ "); // doremon
 			X10Call_c call = (X10Call_c)expr;
 			
 			VarWithLineNo temp1 = currClass.peek();
@@ -2859,8 +2861,48 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 	        sw.write("("+Emitter.translateType(asgn.type())+")(");
 	        sw.write("(("+emitter.makeUnsignedType(lhs.type())+"&)");
 	    }
+
+		// doremon eval-at opt start 
+		if (asgn.right() instanceof X10Call_c && ((X10Call_c)asgn.right()).name().toString().equals("evalAt")) {
+			sw.write(" /* eval-at found even before invoking lhs */ ");
+			sw.newline();
+			
+			EvalAt.turnOnEval();
+
+			sw.write("x10::lang::Place tmpPLACE;");
+			sw.newline();
+
+			sw.write("bool flag = false;");
+			sw.newline();
+
+			sw.write("do {");
+			sw.newline();
+
+			sw.write("if (flag) { ");
+			sw.newline();
+
+			sw.write("if (true) { ");
+			sw.newline();
+
+			EvalAt.startStream(); // getting lhs
+
+			// No need to write lhs before repeatedly anymore
+			// if (funName.equalsIgnoreCase("evalAt")) {
+			// 	String lhs = EvalAt.peekLHS();
+			// 	sw.write(lhs + " = ");
+			// }
+
+		}
+
 	    asgn.printSubExpr(lhs, false, sw, tr);
-	    if (unsigned_op)
+
+		// doremon: getting LHS to push to (LHS) stack which might be used later (and def popped at last)
+		if (asgn.right() instanceof X10Call_c && ((X10Call_c)asgn.right()).name().toString().equals("evalAt")) {
+			EvalAt.stopStream();
+			EvalAt.pushLHS(EvalAt.popStreamOutput());
+		}
+
+		if (unsigned_op)
 	        sw.write(")");
 	    sw.write(" ");
 	    if (asgn.operator() != Assign_c.ASSIGN) {
@@ -2899,6 +2941,11 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
         }
 	    if (unsigned_op)
 	        sw.write("))");
+
+		// doremon: pop the LHS
+		if (asgn.right() instanceof X10Call_c && ((X10Call_c)asgn.right()).name().toString().equals("evalAt")) {
+			EvalAt.popLHS();
+		}
 	}
 
 
@@ -2908,6 +2955,8 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 			sw.write("return;");
 		} else {
 			sw.write("return ");
+			sw.write(" /* Return_c start */ "); // doremon
+			EvalAt.turnOffEval();	// doremon - don't perform evalAt opt
 			boolean needsCast = false;
 			Context context = tr.context();
 			if (context.currentCode() instanceof X10MethodDef) {
@@ -2929,6 +2978,8 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 			    sw.write(")");
 			}
 			sw.write(";"); sw.newline();
+			sw.write(" /* Return_c end */ ");
+			EvalAt.doneWithEval();	// doremon - can perform evalAt opt
 		}
 	}
 
@@ -3655,6 +3706,8 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 		}
 
 		sw.end(); sw.newline();
+		sw.write (" /* end of for loop */ "); // doremon
+		sw.newline();
 		sw.write("}");
 		sw.newline(0);
 	}
@@ -3802,6 +3855,10 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 	}
 
 	public void visit(X10Call_c n) {
+
+		// doremon
+		sw.write(" /* In X10Call_c */ ");
+		sw.newline();
 		
 		/* Nobita code */
 		//System.out.println("Start of call");		
@@ -4004,7 +4061,18 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 		sw.write("  /* (1) After temp setup, funName = ");
 		sw.write(funName);
 		sw.write(" */   ");
-		if (funName.equalsIgnoreCase("runAt"))
+
+		boolean EvalATWasTurnedOn = false;
+		// if (funName.equalsIgnoreCase("evalAt") && !EvalAt.emptyLHS()) {
+		// 	String lhs = EvalAt.peekLHS();
+		// 	sw.write(lhs + "; /* popped lhs -> " + lhs + " */ ");
+		// 	sw.newline();
+		// 	// sw.write(lhs + " = ");
+		// 	EvalATWasTurnedOn = true;
+		// 	EvalAt.turnOnEval(); // TODO: turn it off and remove these
+		// }
+
+		if (funName.equalsIgnoreCase("runAt")) // TODO: check flow || (funName.equalsIgnoreCase("evalAt") && EvalAt.isEvalOn())) 
 		{
 			sw.write("  /*  ");
 			boolean first = true;
@@ -4054,12 +4122,24 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 			sw.write("if (true) { ");
 			sw.newline();
 
+			// if (funName.equalsIgnoreCase("evalAt")) {
+			// 	String lhs = EvalAt.peekLHS();
+			// 	sw.write(lhs + " = ");
+			// }
+
 			// sw.write("SimpleAT__closure__7* sampleTemp = new SimpleAT__closure__7(zztemp0, zztemp1); ");
 			// sw.newline();
 			// sw.write("sampleTemp->__apply(); ");
 			// sw.newline();
 			// sw.write("}");
 			// sw.newline();
+		}
+
+		if (EvalAt.isEvalOn()) {
+			EvalATWasTurnedOn = true; // no need to rewrite lhs in IF USEFUL PLACE condition
+			// sw.newline();
+			// String lhs = EvalAt.peekLHS();
+			// sw.write(lhs + " = ");
 		}
 		// doremon end
 		
@@ -4254,22 +4334,36 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 		}
 		if (!isInterfaceInvoke) {
 		    sw.write(targetMethodName);
+			
+			// doremon getting evalAt template
+			sw.write(" /* targetMethodName = " + targetMethodName + " */  ");
+			if (funName.equalsIgnoreCase("evalAt") && EvalAt.isEvalOn()) {
+				EvalAt.startStream();
+			}
+
 		    emitter.printTemplateInstantiation(mi, sw);
+
+			// doremon stopping stream and pushing to evalAt template stack
+			if (funName.equalsIgnoreCase("evalAt") && EvalAt.isEvalOn()) {
+				EvalAt.stopStream();
+				sw.write(" /* pushing eval template : " + EvalAt.currStreamOutput + " */ ");
+				EvalAt.pushevalTemplates(EvalAt.popStreamOutput());
+			}
 		}
 		sw.write("(");
 
 		// Doremon extracting place argument
 		sw.write(" /* printing actuals funName = " + funName + " */  ");
-		if (funName.equalsIgnoreCase("runAt")) {
+		if (funName.equalsIgnoreCase("runAt") || (funName.equalsIgnoreCase("evalAt") && EvalAt.isEvalOn())) {
 			DoremonGlobalRefs.startStream();
 		}
 		
 		printCallActuals(n, context, xts, mi, n.arguments());
 		
-		if (funName.equalsIgnoreCase("runAt")) {
+		if (funName.equalsIgnoreCase("runAt") || (funName.equalsIgnoreCase("evalAt") && EvalAt.isEvalOn())) {
 			sw.write(" /* stopping streaming now */  ");
 			sw.newline();
-			sw.write(" // " + DoremonGlobalRefs.currStreamOutput);
+			sw.write(" // " + DoremonGlobalRefs.currStreamOutput);  // TODO: remove this and make currStreamOutput private
 			sw.newline();
 			DoremonGlobalRefs.stopStream();  // doremon stopping to get the place argument
 		}
@@ -4314,42 +4408,37 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 
 
 		// doremon start
-		if (funName.equalsIgnoreCase("runAt"))
+		if (funName.equalsIgnoreCase("runAt") || (funName.equalsIgnoreCase("evalAt") && EvalAt.isEvalOn()))
 		{
 			sw.write(";");
 			sw.newline();
 			sw.write("  } else { ");
 			sw.newline();
-			// sw.write("  /*  ");
-			// sw.write("SimpleAT__closure__7* sampleTemp = new SimpleAT__closure__7(zztemp0, zztemp1); ");
 			
-			sw.write(" // ");
-			String dcname = DoremonGlobalRefs.popClassName();
-			sw.write(dcname + "* sampleTemp = new " + dcname + "(");
+			String dcname = DoremonGlobalRefs.popClassName();  
+			// TODO: incorrect invocation and storing of class name, arguments and place
+			// Might not be used by evalAT but certainly be called upon and affect the stack
+			// hence make changes to them and invoke only when needed
+
+			if (funName.equalsIgnoreCase("runAt")) {
+				sw.write("::x10::lang::VoidFun_0_0::__apply(::x10aux::nullCheck(   ::x10::xrx::Runtime::deepCopy< ::x10::lang::VoidFun_0_0* >( ");
+				sw.newline();
+
+				sw.write(" reinterpret_cast< ::x10::lang::VoidFun_0_0*>(new " + dcname + "(");
+			} 
+			else if(funName.equalsIgnoreCase("evalAt")) {
+				// TODO: Get the LHS for return at expression
+				String lhs = EvalAt.peekLHS();
+				String evalTemplate = EvalAt.popevalTemplates();
+				sw.write(lhs + " = ::x10::lang::Fun_0_0" + evalTemplate + "::__apply(::x10aux::nullCheck(   ::x10::xrx::Runtime::deepCopy< ::x10::lang::Fun_0_0" + evalTemplate +"* >( ");
+				sw.newline();
+
+				sw.write(" reinterpret_cast< ::x10::lang::Fun_0_0" + evalTemplate +"*>(new " + dcname + "(");
+			}
 			boolean first = true;
 			for (String obj : DoremonGlobalRefs.arguments) 
 			{
-				if(first) 
-				{
-					sw.write(obj);
-					first = false;
-					continue;
-				}
-				sw.write(", " + obj);
-			}
-			sw.write(");");			
-			sw.newline();
-			sw.write(" // sampleTemp->__apply(); ");
-			sw.newline();
-
-			sw.write("::x10::lang::VoidFun_0_0::__apply(::x10aux::nullCheck(   ::x10::xrx::Runtime::deepCopy< ::x10::lang::VoidFun_0_0* >( ");
-			sw.newline();
-
-			sw.write(" reinterpret_cast< ::x10::lang::VoidFun_0_0*>(new " + dcname + "(");
-			first = true;
-			for (String obj : DoremonGlobalRefs.arguments) 
-			{
-				if(first) 
+				if(first)
 				{
 					sw.write(obj);
 					first = false;
@@ -4382,6 +4471,10 @@ if ((currClass.size() > 0) && (currMethod.size() > 0) && iterationCount>=4 && (a
 			sw.write("}");
 			sw.newline();
 			sw.write("} while(true)");
+		}
+
+		if(funName.equalsIgnoreCase("evalAt") && EvalAt.isEvalOn()) {
+			EvalAt.doneWithEval();
 		}
 		// doremon end
 	}
